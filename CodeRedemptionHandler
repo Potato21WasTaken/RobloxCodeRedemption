@@ -1,0 +1,43 @@
+--[[
+=====================================================
+SCRIPT 2: Server Script
+Location: ServerScriptService > CodeRedemptionHandler
+=====================================================
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RedemptionService = require(ReplicatedStorage:WaitForChild("RedemptionService"))
+
+-- IMPORTANT: Update this with your backend URL and secret
+local BACKEND_URL = ""
+local SERVER_SECRET = "your-secret-key-here"  -- Get this from your backend/.env file
+
+-- Initialize the service
+RedemptionService:Init(BACKEND_URL, SERVER_SECRET)
+
+print("✅ Code Redemption System initialized!")
+
+-- Create RemoteEvent for client-server communication
+local RedeemCodeEvent = Instance.new("RemoteEvent")
+RedeemCodeEvent.Name = "RedeemCodeEvent"
+RedeemCodeEvent.Parent = ReplicatedStorage
+
+-- Handle code redemption requests from clients
+RedeemCodeEvent.OnServerEvent:Connect(function(player, code)
+	print("[Server] Redemption request from", player.Name, "for code:", code)
+	
+	if not code or type(code) ~= "string" or #code == 0 then
+		RedeemCodeEvent:FireClient(player, {
+			success = false,
+			error = "invalid_code",
+			message = "Please enter a valid code"
+		})
+		return
+	end
+	
+	-- Call backend to redeem code
+	local result = RedemptionService:RedeemCode(code, player.UserId)
+	
+	-- Send result back to client
+	RedeemCodeEvent:FireClient(player, result)
+end)
