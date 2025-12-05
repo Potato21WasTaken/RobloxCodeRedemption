@@ -1,0 +1,59 @@
+--[[
+=====================================================
+SCRIPT 1: ModuleScript
+Location: ReplicatedStorage > RedemptionService
+=====================================================
+]]
+
+local HttpService = game:GetService("HttpService")
+
+local RedemptionService = {}
+RedemptionService.BackendURL = nil
+RedemptionService.ServerSecret = nil
+
+function RedemptionService:Init(backendURL, serverSecret)
+	self.BackendURL = backendURL
+	self.ServerSecret = serverSecret
+	print("[RedemptionService] Initialized with backend:", backendURL)
+end
+
+function RedemptionService:RedeemCode(code, robloxUserId)
+	if not self.BackendURL then
+		return {success = false, error = "not_initialized"}
+	end
+	
+	local url = self.BackendURL .. "/redeem-code"
+	
+	local requestData = {
+		Url = url,
+		Method = "POST",
+		Headers = {
+			["Content-Type"] = "application/json",
+			["x-api-key"] = self.ServerSecret
+		},
+		Body = HttpService:JSONEncode({
+			code = code,
+			robloxUserId = tostring(robloxUserId)
+		})
+	}
+	
+	local success, response = pcall(function()
+		return HttpService:RequestAsync(requestData)
+	end)
+	
+	if not success then
+		warn("[RedemptionService] HTTP Error:", response)
+		return {success = false, error = "network_error", message = tostring(response)}
+	end
+	
+	if response.StatusCode ~= 200 then
+		local errorData = HttpService:JSONDecode(response.Body)
+		warn("[RedemptionService] Server returned error:", errorData.error)
+		return {success = false, error = errorData.error, message = errorData.message}
+	end
+	
+	local data = HttpService:JSONDecode(response.Body)
+	return {success = true, data = data}
+end
+
+return RedemptionService
