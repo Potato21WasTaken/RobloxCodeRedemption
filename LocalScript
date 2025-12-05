@@ -1,0 +1,75 @@
+--[[
+=====================================================
+SCRIPT 3: LocalScript
+Location: StarterGui > ScreenGui > RedemptionFrame > LocalScript
+=====================================================
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+-- Wait for the RemoteEvent
+local RedeemCodeEvent = ReplicatedStorage:WaitForChild("RedeemCodeEvent")
+
+-- Get GUI elements
+local gui = script.Parent
+local codeInput = gui:WaitForChild("CodeInput")
+local redeemButton = gui:WaitForChild("RedeemButton")
+local statusMessage = gui:WaitForChild("StatusMessage")
+
+-- Set initial status
+statusMessage.Text = "Ready to redeem code!"
+statusMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Handle button click
+redeemButton.MouseButton1Click:Connect(function()
+	local code = codeInput.Text
+	
+	if code == "" then
+		statusMessage.Text = "❌ Please enter a code"
+		statusMessage.TextColor3 = Color3.fromRGB(255, 0, 0)
+		return
+	end
+	
+	-- Show loading state (no .Enabled property - Roblox removed it)
+	redeemButton.Text = "Redeeming..."
+	redeemButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	statusMessage.Text = "Checking code..."
+	statusMessage.TextColor3 = Color3.fromRGB(255, 255, 0)
+	
+	-- Send request to server
+	RedeemCodeEvent:FireServer(code)
+end)
+
+-- Handle server response
+RedeemCodeEvent.OnClientEvent:Connect(function(response)
+	-- Reset button
+	redeemButton.Text = "Redeem Code"
+	redeemButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+	
+	if response.success then
+		-- Success!
+		statusMessage.Text = "✅ Code redeemed successfully!"
+		statusMessage.TextColor3 = Color3.fromRGB(0, 255, 0)
+		codeInput.Text = ""
+		
+		-- You can add reward logic here
+		print("Rewards:", response.data.rewards)
+		
+	else
+		-- Error handling
+		local errorMessages = {
+			invalid_code = "❌ Invalid code",
+			code_already_used = "❌ This code has already been used",
+			user_already_redeemed = "❌ You have already redeemed a code",
+			network_error = "❌ Connection error. Try again",
+			not_initialized = "❌ System not ready. Try again"
+		}
+		
+		local message = errorMessages[response.error] or "❌ " .. (response.message or "Unknown error")
+		statusMessage.Text = message
+		statusMessage.TextColor3 = Color3.fromRGB(255, 0, 0)
+		
+		print("Redemption error:", response.error, response.message)
+	end
+end)
